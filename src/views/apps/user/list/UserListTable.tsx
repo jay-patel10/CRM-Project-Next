@@ -62,6 +62,7 @@ import { getInitials } from '@/utils/getInitials'
 
 // Style Imports
 import tableStyles from '@core/styles/table.module.css'
+import apiClient from '@/libs/api'
 
 declare module '@tanstack/table-core' {
   interface FilterFns {
@@ -164,44 +165,35 @@ const UserListTable = ({
   const canEdit = hasPermission('users.edit') || hasPermission('users.update')
   const canDelete = hasPermission('users.delete')
 
-  // Fetch roles
   const loadRoles = async () => {
     try {
-      const token = localStorage.getItem('accessToken')
+      const response = await apiClient.get('/roles')
 
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/roles`, {
-        headers: { Authorization: `Bearer ${token}` }
-      })
-
-      const json = await res.json()
-
-      if (json.success) {
-        setRoles(json.roles || [])
+      if (response.data.success) {
+        setRoles(response.data.roles || [])
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('Failed to fetch roles:', err)
-      showToast.error('Failed to load roles')
+      const errorMessage = err.response?.data?.message || 'Failed to load roles'
+
+      showToast.error(errorMessage)
     }
   }
 
-  // Fetch users
+  // ✅ REPLACE THIS FUNCTION - Use apiClient
   const loadUsers = async () => {
     try {
-      const token = localStorage.getItem('accessToken')
+      const response = await apiClient.get('/users')
 
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/users`, {
-        headers: { Authorization: `Bearer ${token}` }
-      })
-
-      const json = await res.json()
-
-      if (json.success) {
-        setData(json.users)
-        setFilteredData(json.users)
+      if (response.data.success) {
+        setData(response.data.users)
+        setFilteredData(response.data.users)
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('Failed to fetch users:', err)
-      showToast.error('Failed to load users')
+      const errorMessage = err.response?.data?.message || 'Failed to load users'
+
+      showToast.error(errorMessage)
     }
   }
 
@@ -210,7 +202,6 @@ const UserListTable = ({
     loadUsers()
   }, [])
 
-  // Handle Add User button click with permission check
   const handleAddUserClick = () => {
     if (!canCreate) {
       showToast.error("You don't have permission to create users", 'Access Denied')
@@ -221,7 +212,6 @@ const UserListTable = ({
     setAddUserOpen(true)
   }
 
-  // Delete user handler with permission check
   const handleDeleteClick = (user: UsersType) => {
     if (!canDelete) {
       showToast.error("You don't have permission to delete users", 'Access Denied')
@@ -233,35 +223,31 @@ const UserListTable = ({
     setDeleteDialogOpen(true)
   }
 
+  // ✅ REPLACE THIS FUNCTION - Use apiClient
   const handleDeleteConfirm = async () => {
     if (!userToDelete) return
 
     try {
-      const token = localStorage.getItem('accessToken')
+      const response = await apiClient.delete(`/users/${userToDelete.id}`)
 
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/users/${userToDelete.id}`, {
-        method: 'DELETE',
-        headers: { Authorization: `Bearer ${token}` }
-      })
-
-      const json = await res.json()
-
-      if (json.success) {
+      if (response.data.success) {
         showToast.success('User deleted successfully!')
         loadUsers()
       } else {
-        showToast.error(json.message || 'Failed to delete user')
+        showToast.error(response.data.message || 'Failed to delete user')
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('Delete error:', err)
-      showToast.error('Error deleting user')
+      const errorMessage = err.response?.data?.message || 'Error deleting user'
+
+      showToast.error(errorMessage)
     }
 
     setDeleteDialogOpen(false)
     setUserToDelete(null)
   }
 
-  // Update user handler with permission check
+  // ✅ REPLACE THIS FUNCTION - Use apiClient
   const handleUpdate = async (id: number, updateData: Partial<UsersType>) => {
     if (!canEdit) {
       showToast.error("You don't have permission to update users", 'Access Denied')
@@ -270,28 +256,19 @@ const UserListTable = ({
     }
 
     try {
-      const token = localStorage.getItem('accessToken')
+      const response = await apiClient.put(`/users/${id}`, updateData)
 
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/users/${id}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`
-        },
-        body: JSON.stringify(updateData)
-      })
-
-      const json = await res.json()
-
-      if (json.success) {
+      if (response.data.success) {
         showToast.success('User updated successfully!')
         loadUsers()
       } else {
-        showToast.error(json.message || 'Failed to update user')
+        showToast.error(response.data.message || 'Failed to update user')
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('Update error:', err)
-      showToast.error('Error updating user')
+      const errorMessage = err.response?.data?.message || 'Error updating user'
+
+      showToast.error(errorMessage)
     }
   }
 

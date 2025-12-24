@@ -20,6 +20,7 @@ import { useForm, Controller } from 'react-hook-form'
 
 import CustomTextField from '@core/components/mui/TextField'
 import { showToast } from '@/utils/toast'
+import apiClient from '@/libs/api'
 
 type AddRoleInput = {
   name: string
@@ -144,26 +145,16 @@ const AddRoleDrawer = ({ open, handleClose, reloadRoles }: any) => {
 
     try {
       setLoading(true)
-      const token = localStorage.getItem('accessToken')
 
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/roles`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`
-        },
-        body: JSON.stringify({
-          name: formData.name.trim(),
-          description: formData.description.trim(),
-          permissions,
-          isActive
-        })
+      const response = await apiClient.post('/roles', {
+        name: formData.name.trim(),
+        description: formData.description.trim(),
+        permissions,
+        isActive
       })
 
-      const json = await res.json()
-
-      if (json.success === false) {
-        showToast.error(json.message || 'Failed to create role')
+      if (response.data.success === false) {
+        showToast.error(response.data.message || 'Failed to create role')
 
         return
       }
@@ -173,7 +164,9 @@ const AddRoleDrawer = ({ open, handleClose, reloadRoles }: any) => {
       handleReset()
     } catch (err: any) {
       console.error('Create Role Error:', err)
-      showToast.error('Error creating role. Please try again.')
+      const errorMessage = err.response?.data?.message || 'Error creating role. Please try again.'
+
+      showToast.error(errorMessage)
     } finally {
       setLoading(false)
     }

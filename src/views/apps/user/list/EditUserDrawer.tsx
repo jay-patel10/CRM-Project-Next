@@ -10,10 +10,11 @@ import Typography from '@mui/material/Typography'
 import Divider from '@mui/material/Divider'
 import FormControlLabel from '@mui/material/FormControlLabel'
 import Switch from '@mui/material/Switch'
-import Chip from '@mui/material/Chip'
 
 // Third-party Imports
 import { useForm, Controller } from 'react-hook-form'
+
+import apiClient from '@/utils/api'
 
 // Component Imports
 import CustomTextField from '@core/components/mui/TextField'
@@ -75,35 +76,22 @@ const EditUserDrawer = ({ open, handleClose, reloadUsers, roles, userData }: Pro
 
     try {
       setLoading(true)
-      const token = localStorage.getItem('accessToken')
 
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/users/${userData.id}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`
-        },
-        body: JSON.stringify({
-          ...formData,
-          roleId: Number(formData.roleId),
-          isActive
-        })
+      const res = await apiClient.put(`/users/${userData.id}`, {
+        ...formData,
+        roleId: Number(formData.roleId),
+        isActive
       })
 
-      const json = await res.json()
-
-      if (json.success === false) {
-        showToast.error(json.message || 'Failed to update user')
+      if (res.data?.success === false) {
+        showToast.error(res.data.message || 'Failed to update user')
 
         return
       }
 
       showToast.success('User updated successfully!')
 
-      if (typeof reloadUsers === 'function') {
-        await reloadUsers()
-      }
-
+      await reloadUsers()
       handleReset()
     } catch (err: any) {
       console.error('Update User Error:', err)
@@ -146,24 +134,6 @@ const EditUserDrawer = ({ open, handleClose, reloadUsers, roles, userData }: Pro
       </div>
 
       <Divider />
-
-      {/* Current Role Info */}
-      {userData && currentRole && (
-        <div className='p-6 pb-0'>
-          <div className='flex items-center gap-2 mb-4'>
-            <Typography variant='body2' color='text.secondary'>
-              Current Role:
-            </Typography>
-            <Chip
-              label={currentRole.name}
-              size='small'
-              color='primary'
-              variant='tonal'
-              icon={<i className='tabler-user' />}
-            />
-          </div>
-        </div>
-      )}
 
       <form onSubmit={handleSubmit(handleFormSubmit)} className='flex flex-col gap-6 p-6'>
         <Controller
@@ -225,7 +195,6 @@ const EditUserDrawer = ({ open, handleClose, reloadUsers, roles, userData }: Pro
             />
           )}
         />
-
         <Controller
           name='roleId'
           control={control}
@@ -238,7 +207,21 @@ const EditUserDrawer = ({ open, handleClose, reloadUsers, roles, userData }: Pro
               label='Select Role'
               error={!!errors.roleId}
               helperText={errors.roleId?.message}
+              value={field.value ?? ''}
+              SelectProps={{
+                displayEmpty: true,
+                renderValue: selected => {
+                  if (!selected) {
+                    return <span style={{ color: '#9e9e9e' }}>Select Role</span>
+                  }
+
+                  const selectedRole = roles.find(role => role.id === selected)
+
+                  return selectedRole?.name || ''
+                }
+              }}
             >
+              {/* ONLY roles in dropdown */}
               {roles.map(role => (
                 <MenuItem key={role.id} value={role.id}>
                   {role.name}

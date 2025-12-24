@@ -10,8 +10,10 @@ import LayoutWrapper from '@layouts/LayoutWrapper'
 import VerticalLayout from '@layouts/VerticalLayout'
 import HorizontalLayout from '@layouts/HorizontalLayout'
 
+// ✅ ONLY client-side protected providers here
+import ProtectedProviders from '@components/ProtectedProviders'
+
 // Component Imports
-import Providers from '@components/Providers'
 import Navigation from '@components/layout/vertical/Navigation'
 import Header from '@components/layout/horizontal/Header'
 import Navbar from '@components/layout/vertical/Navbar'
@@ -29,14 +31,13 @@ import { getDictionary } from '@/utils/getDictionary'
 import { getMode, getSystemMode } from '@core/utils/serverHelpers'
 
 const Layout = async ({ children, params }: ChildrenType & { params: { lang: Locale } }) => {
-  // Vars
   const direction = i18n.langDirection[params.lang]
   const dictionary = await getDictionary(params.lang)
   const mode = getMode()
   const systemMode = getSystemMode()
 
   return (
-    <Providers direction={direction}>
+    <ProtectedProviders direction={direction}>
       <AuthGuard locale={params.lang}>
         <LayoutWrapper
           systemMode={systemMode}
@@ -55,6 +56,7 @@ const Layout = async ({ children, params }: ChildrenType & { params: { lang: Loc
             </HorizontalLayout>
           }
         />
+
         <ScrollToTop className='mui-fixed'>
           <Button
             variant='contained'
@@ -63,9 +65,10 @@ const Layout = async ({ children, params }: ChildrenType & { params: { lang: Loc
             <i className='tabler-arrow-up' />
           </Button>
         </ScrollToTop>
+
         <Customizer dir={direction} />
       </AuthGuard>
-    </Providers>
+    </ProtectedProviders>
   )
 }
 

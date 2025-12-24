@@ -18,6 +18,7 @@ import IconButton from '@mui/material/IconButton'
 import AddRoleDrawer from './AddRoleDrawer'
 import EditRoleDrawer from './EditRoleDrawer'
 import { showToast } from '@/utils/toast'
+import apiClient from '@/libs/api'
 
 type Role = {
   id: number
@@ -45,35 +46,22 @@ const RoleCards = () => {
       setLoading(true)
       console.log('🔍 [RoleCards] Loading roles...')
 
-      const token = localStorage.getItem('accessToken')
+      const response = await apiClient.get('/roles')
 
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/roles`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      })
+      console.log('📡 [RoleCards] API response:', response.data)
 
-      console.log('📡 [RoleCards] API response status:', res.status)
-
-      if (!res.ok) {
-        throw new Error(`API returned ${res.status}`)
-      }
-
-      const json = await res.json()
-
-      console.log('📦 [RoleCards] API response:', json)
-
-      if (json.success && Array.isArray(json.roles)) {
-        console.log('✅ [RoleCards] Loaded', json.roles.length, 'roles')
-        setRoles(json.roles)
+      if (response.data.success && Array.isArray(response.data.roles)) {
+        console.log('✅ [RoleCards] Loaded', response.data.roles.length, 'roles')
+        setRoles(response.data.roles)
       } else {
         console.warn('⚠️ [RoleCards] No roles in response')
         setRoles([])
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('❌ [RoleCards] Failed to fetch roles:', err)
-      showToast.error('Failed to load roles')
+      const errorMessage = err.response?.data?.message || 'Failed to load roles'
+
+      showToast.error(errorMessage)
       setRoles([])
     } finally {
       setLoading(false)
@@ -92,24 +80,19 @@ const RoleCards = () => {
     }
 
     try {
-      const token = localStorage.getItem('accessToken')
+      const response = await apiClient.delete(`/roles/${roleId}`)
 
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/roles/${roleId}`, {
-        method: 'DELETE',
-        headers: { Authorization: `Bearer ${token}` }
-      })
-
-      const json = await res.json()
-
-      if (json.success) {
+      if (response.data.success) {
         showToast.success('Role deleted successfully!')
         loadRoles()
       } else {
-        showToast.error(json.message || 'Failed to delete role')
+        showToast.error(response.data.message || 'Failed to delete role')
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('❌ [RoleCards] Delete error:', err)
-      showToast.error('Error deleting role')
+      const errorMessage = err.response?.data?.message || 'Error deleting role'
+
+      showToast.error(errorMessage)
     }
   }
 

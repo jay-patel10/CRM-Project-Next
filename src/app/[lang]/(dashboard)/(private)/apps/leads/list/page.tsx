@@ -40,6 +40,7 @@ import TablePaginationComponent from '@components/TablePaginationComponent'
 import TableFilters from './TableFilters'
 import { usePermissions } from '@/contexts/PermissionContext'
 import { showToast } from '@/utils/toast'
+import apiClient from '@/libs/api'
 
 import tableStyles from '@core/styles/table.module.css'
 
@@ -97,21 +98,17 @@ const LeadsListPage = () => {
   // Load leads from backend
   const loadLeads = async () => {
     try {
-      const token = localStorage.getItem('accessToken')
+      const response = await apiClient.get('/leads')
 
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/leads`, {
-        headers: { Authorization: `Bearer ${token}` }
-      })
-
-      const json = await res.json()
-
-      if (json.success) {
-        setData(json.leads)
-        setFilteredData(json.leads)
+      if (response.data.success) {
+        setData(response.data.leads)
+        setFilteredData(response.data.leads)
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('Failed to fetch leads:', err)
-      showToast.error('Failed to load leads')
+      const errorMessage = err.response?.data?.message || 'Failed to load leads'
+
+      showToast.error(errorMessage)
     }
   }
 
@@ -158,24 +155,19 @@ const LeadsListPage = () => {
     if (!leadToDelete) return
 
     try {
-      const token = localStorage.getItem('accessToken')
+      const response = await apiClient.delete(`/leads/${leadToDelete.id}`)
 
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/leads/${leadToDelete.id}`, {
-        method: 'DELETE',
-        headers: { Authorization: `Bearer ${token}` }
-      })
-
-      const json = await res.json()
-
-      if (json.success) {
+      if (response.data.success) {
         showToast.success('Lead deleted successfully!')
         loadLeads()
       } else {
-        showToast.error(json.message || 'Failed to delete lead')
+        showToast.error(response.data.message || 'Failed to delete lead')
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('Delete error:', err)
-      showToast.error('Error deleting lead')
+      const errorMessage = err.response?.data?.message || 'Error deleting lead'
+
+      showToast.error(errorMessage)
     }
 
     setDeleteDialogOpen(false)

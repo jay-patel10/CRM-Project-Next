@@ -38,6 +38,7 @@ import OptionMenu from '@core/components/option-menu'
 import CustomTextField from '@core/components/mui/TextField'
 import TablePaginationComponent from '@components/TablePaginationComponent'
 import { showToast } from '@/utils/toast'
+import apiClient from '@/libs/api'
 
 import tableStyles from '@core/styles/table.module.css'
 import { usePermissions } from '@/contexts/PermissionContext'
@@ -125,25 +126,17 @@ const RolesTable = () => {
   const loadRoles = async () => {
     try {
       console.log('🔍 [RolesTable] Loading roles for filter...')
-      const token = localStorage.getItem('accessToken')
 
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/roles`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      })
+      const response = await apiClient.get('/roles')
 
-      const json = await res.json()
+      console.log('📦 [RolesTable] Roles loaded:', response.data.roles?.length || 0)
 
-      console.log('📦 [RolesTable] Roles loaded:', json.roles?.length || 0)
-
-      if (json.success && Array.isArray(json.roles)) {
-        setRoles(json.roles)
+      if (response.data.success && Array.isArray(response.data.roles)) {
+        setRoles(response.data.roles)
       } else {
         setRoles([])
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('❌ [RolesTable] Failed to fetch roles:', err)
       setRoles([])
     }
@@ -155,29 +148,22 @@ const RolesTable = () => {
       setLoading(true)
       console.log('🔍 [RolesTable] Loading users...')
 
-      const token = localStorage.getItem('accessToken')
+      const response = await apiClient.get('/users')
 
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/users`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      })
+      console.log('📦 [RolesTable] Users loaded:', response.data.users?.length || 0)
 
-      const json = await res.json()
-
-      console.log('📦 [RolesTable] Users loaded:', json.users?.length || 0)
-
-      if (json.success && Array.isArray(json.users)) {
-        setData(json.users)
-        setFilteredData(json.users)
+      if (response.data.success && Array.isArray(response.data.users)) {
+        setData(response.data.users)
+        setFilteredData(response.data.users)
       } else {
         setData([])
         setFilteredData([])
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('❌ [RolesTable] Failed to fetch users:', err)
-      showToast.error('Failed to load users')
+      const errorMessage = err.response?.data?.message || 'Failed to load users'
+
+      showToast.error(errorMessage)
       setData([])
       setFilteredData([])
     } finally {
@@ -205,51 +191,39 @@ const RolesTable = () => {
     if (!confirm(`Are you sure you want to delete user "${userName}"?`)) return
 
     try {
-      const token = localStorage.getItem('accessToken')
+      const response = await apiClient.delete(`/users/${id}`)
 
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/users/${id}`, {
-        method: 'DELETE',
-        headers: { Authorization: `Bearer ${token}` }
-      })
-
-      const json = await res.json()
-
-      if (json.success) {
+      if (response.data.success) {
         showToast.success('User deleted successfully!')
         loadUsers()
       } else {
-        showToast.error(json.message || 'Failed to delete user')
+        showToast.error(response.data.message || 'Failed to delete user')
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('❌ [RolesTable] Delete error:', err)
-      showToast.error('Error deleting user')
+      const errorMessage = err.response?.data?.message || 'Error deleting user'
+
+      showToast.error(errorMessage)
     }
   }
 
   const handleToggleStatus = async (id: number, currentStatus: boolean, userName: string) => {
     try {
-      const token = localStorage.getItem('accessToken')
-
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/users/${id}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`
-        },
-        body: JSON.stringify({ isActive: !currentStatus })
+      const response = await apiClient.put(`/users/${id}`, {
+        isActive: !currentStatus
       })
 
-      const json = await res.json()
-
-      if (json.success) {
+      if (response.data.success) {
         showToast.success(`User ${!currentStatus ? 'activated' : 'deactivated'} successfully!`)
         loadUsers()
       } else {
-        showToast.error(json.message || 'Failed to update status')
+        showToast.error(response.data.message || 'Failed to update status')
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('❌ [RolesTable] Update error:', err)
-      showToast.error('Error updating user')
+      const errorMessage = err.response?.data?.message || 'Error updating user'
+
+      showToast.error(errorMessage)
     }
   }
 
@@ -321,7 +295,6 @@ const RolesTable = () => {
         header: 'Actions',
         cell: ({ row }) => (
           <div className='flex items-center'>
-            {/* ✅ Fixed: Use correct permission key format */}
             {hasPermission('users.delete') && (
               <IconButton
                 onClick={() => handleDelete(row.original.id, row.original.name)}

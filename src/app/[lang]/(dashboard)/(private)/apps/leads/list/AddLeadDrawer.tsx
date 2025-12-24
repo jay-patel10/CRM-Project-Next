@@ -16,6 +16,7 @@ import { useForm, Controller } from 'react-hook-form'
 
 import CustomTextField from '@core/components/mui/TextField'
 import { showToast } from '@/utils/toast'
+import apiClient from '@/libs/api'
 
 type LeadFormType = {
   name: string
@@ -77,42 +78,22 @@ const AddLeadDrawer = ({ open, handleClose, onCreateLead }: Props) => {
       setLoadingUsers(true)
       console.log('🔍 [AddLeadDrawer] Loading users...')
 
-      const token = localStorage.getItem('accessToken')
+      const response = await apiClient.get('/users')
 
-      if (!token) {
-        console.error('❌ [AddLeadDrawer] No token found')
-        showToast.error('Authentication error. Please login again.')
+      console.log('📦 [AddLeadDrawer] Users loaded:', response.data.users?.length || 0)
 
-        return
-      }
-
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/users`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      })
-
-      console.log('📡 [AddLeadDrawer] User API response status:', res.status)
-
-      if (!res.ok) {
-        throw new Error(`API returned ${res.status}`)
-      }
-
-      const json = await res.json()
-
-      console.log('📦 [AddLeadDrawer] Users response:', json)
-
-      if (json.success && Array.isArray(json.users)) {
-        console.log('✅ [AddLeadDrawer] Loaded', json.users.length, 'users')
-        setUsers(json.users)
+      if (response.data.success && Array.isArray(response.data.users)) {
+        console.log('✅ [AddLeadDrawer] Loaded', response.data.users.length, 'users')
+        setUsers(response.data.users)
       } else {
         console.warn('⚠️ [AddLeadDrawer] No users in response')
         setUsers([])
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('💥 [AddLeadDrawer] Failed to fetch users:', err)
-      showToast.error('Failed to load users. Please try again.')
+      const errorMessage = err.response?.data?.message || 'Failed to load users. Please try again.'
+
+      showToast.error(errorMessage)
       setUsers([])
     } finally {
       setLoadingUsers(false)
@@ -127,7 +108,6 @@ const AddLeadDrawer = ({ open, handleClose, onCreateLead }: Props) => {
   const onSubmit = async (data: LeadFormType) => {
     try {
       setLoading(true)
-      const token = localStorage.getItem('accessToken')
 
       const payload = {
         ...data,
@@ -143,19 +123,10 @@ const AddLeadDrawer = ({ open, handleClose, onCreateLead }: Props) => {
 
       console.log('📤 [AddLeadDrawer] Submitting lead:', payload)
 
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/leads`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`
-        },
-        body: JSON.stringify(payload)
-      })
+      const response = await apiClient.post('/leads', payload)
 
-      const json = await res.json()
-
-      if (json.success === false) {
-        showToast.error(json.message || 'Failed to create lead')
+      if (response.data.success === false) {
+        showToast.error(response.data.message || 'Failed to create lead')
 
         return
       }
@@ -165,7 +136,9 @@ const AddLeadDrawer = ({ open, handleClose, onCreateLead }: Props) => {
       handleReset()
     } catch (err: any) {
       console.error('❌ [AddLeadDrawer] Create Lead Error:', err)
-      showToast.error('Error creating lead. Please try again.')
+      const errorMessage = err.response?.data?.message || 'Error creating lead. Please try again.'
+
+      showToast.error(errorMessage)
     } finally {
       setLoading(false)
     }

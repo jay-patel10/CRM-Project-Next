@@ -8,7 +8,8 @@ import 'react-perfect-scrollbar/dist/css/styles.css'
 import type { ChildrenType } from '@core/types'
 import type { Locale } from '@configs/i18n'
 
-// Component Imports
+// Providers
+import ServerProviders from '@components/ServerProviders'
 
 // HOC Imports
 import TranslationWrapper from '@/hocs/TranslationWrapper'
@@ -28,7 +29,7 @@ export const metadata = {
     'Vuexy - MUI Next.js Admin Dashboard Template - is the most developer friendly & highly customizable Admin Dashboard Template based on MUI v5.'
 }
 
-const RootLayout = ({ children, params }: ChildrenType & { params: { lang: Locale } }) => {
+const LangLayout = ({ children, params }: ChildrenType & { params: { lang: Locale } }) => {
   // Vars
   const headersList = headers()
   const direction = i18n.langDirection[params.lang]
@@ -36,10 +37,13 @@ const RootLayout = ({ children, params }: ChildrenType & { params: { lang: Local
   return (
     <TranslationWrapper headersList={headersList} lang={params.lang}>
       <html id='__next' lang={params.lang} dir={direction}>
-        <body className='flex is-full min-bs-full flex-auto flex-col'>{children}</body>
+        <body className='flex is-full min-bs-full flex-auto flex-col'>
+          {/* ✅ GLOBAL SETTINGS + THEME PROVIDER (FOR ALL PAGES) */}
+          <ServerProviders direction={direction}>{children}</ServerProviders>
+        </body>
       </html>
     </TranslationWrapper>
   )
 }
 
-export default RootLayout
+export default LangLayout

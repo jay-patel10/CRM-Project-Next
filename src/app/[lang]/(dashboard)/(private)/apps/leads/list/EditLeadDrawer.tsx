@@ -17,6 +17,7 @@ import { useForm, Controller } from 'react-hook-form'
 
 import CustomTextField from '@core/components/mui/TextField'
 import { showToast } from '@/utils/toast'
+import apiClient from '@/libs/api'
 
 type LeadFormType = {
   name: string
@@ -98,27 +99,20 @@ const EditLeadDrawer = ({ open, handleClose, onUpdateLead, leadData }: Props) =>
       setLoadingUsers(true)
       console.log('🔍 [EditLeadDrawer] Loading users...')
 
-      const token = localStorage.getItem('accessToken')
+      const response = await apiClient.get('/users')
 
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/users`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      })
+      console.log('📦 [EditLeadDrawer] Users loaded:', response.data.users?.length || 0)
 
-      const json = await res.json()
-
-      console.log('📦 [EditLeadDrawer] Users loaded:', json.users?.length || 0)
-
-      if (json.success && Array.isArray(json.users)) {
-        setUsers(json.users)
+      if (response.data.success && Array.isArray(response.data.users)) {
+        setUsers(response.data.users)
       } else {
         setUsers([])
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('❌ [EditLeadDrawer] Failed to fetch users:', err)
-      showToast.error('Failed to load users')
+      const errorMessage = err.response?.data?.message || 'Failed to load users'
+
+      showToast.error(errorMessage)
       setUsers([])
     } finally {
       setLoadingUsers(false)
@@ -154,7 +148,6 @@ const EditLeadDrawer = ({ open, handleClose, onUpdateLead, leadData }: Props) =>
 
     try {
       setLoading(true)
-      const token = localStorage.getItem('accessToken')
 
       // Convert empty string back to null for API
       const payload = {
@@ -169,19 +162,10 @@ const EditLeadDrawer = ({ open, handleClose, onUpdateLead, leadData }: Props) =>
 
       console.log('📤 [EditLeadDrawer] Updating lead:', payload)
 
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/leads/${leadData.id}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`
-        },
-        body: JSON.stringify(payload)
-      })
+      const response = await apiClient.put(`/leads/${leadData.id}`, payload)
 
-      const json = await res.json()
-
-      if (json.success === false) {
-        showToast.error(json.message || 'Failed to update lead')
+      if (response.data.success === false) {
+        showToast.error(response.data.message || 'Failed to update lead')
 
         return
       }
@@ -191,7 +175,9 @@ const EditLeadDrawer = ({ open, handleClose, onUpdateLead, leadData }: Props) =>
       handleReset()
     } catch (err: any) {
       console.error('❌ [EditLeadDrawer] Update Lead Error:', err)
-      showToast.error('Error updating lead. Please try again.')
+      const errorMessage = err.response?.data?.message || 'Error updating lead. Please try again.'
+
+      showToast.error(errorMessage)
     } finally {
       setLoading(false)
     }
