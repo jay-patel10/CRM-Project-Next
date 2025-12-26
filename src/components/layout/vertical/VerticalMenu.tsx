@@ -1,3 +1,6 @@
+// ==========================================
+// FILE: src/data/navigation/verticalMenuData.tsx (UPDATED)
+// ==========================================
 'use client'
 
 import { useParams } from 'next/navigation'
@@ -58,6 +61,7 @@ const VerticalMenu = ({ dictionary, scrollMenu }: Props) => {
   const canViewUsers = isAdmin || hasPermission('Users', 'view')
   const canViewRoles = isAdmin || hasPermission('Roles', 'view')
   const canViewSettings = isAdmin || hasPermission('Settings', 'view')
+  const canViewSubscriptions = isAdmin || hasPermission('Subscriptions', 'view')
 
   // Show CRM section if user has access to ANY CRM module
   const canViewCRM = canViewLeads || canViewCustomers || canViewProducts || canViewOrders
@@ -177,6 +181,17 @@ const VerticalMenu = ({ dictionary, scrollMenu }: Props) => {
                 <MenuItem href={`/${locale}/apps/email-templates/add`}>Create Template</MenuItem>
               </SubMenu>
             )}
+          </MenuSection>
+        )}
+
+        {/* ===== BILLING & SUBSCRIPTIONS ===== */}
+        {canViewSubscriptions && (
+          <MenuSection label='BILLING & SUBSCRIPTIONS'>
+            <SubMenu label='Subscriptions' icon={<i className='tabler-credit-card' />}>
+              <MenuItem href={`/${locale}/apps/subscriptions/list`}>My Subscription</MenuItem>
+              <MenuItem href={`/${locale}/apps/subscriptions/payments`}>Payment History</MenuItem>
+              {isAdmin && <MenuItem href={`/${locale}/apps/subscriptions/plans`}>Manage Plans</MenuItem>}
+            </SubMenu>
           </MenuSection>
         )}
 

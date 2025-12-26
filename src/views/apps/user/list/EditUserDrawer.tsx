@@ -14,7 +14,7 @@ import Switch from '@mui/material/Switch'
 // Third-party Imports
 import { useForm, Controller } from 'react-hook-form'
 
-import apiClient from '@/utils/api'
+import apiClient from '@/libs/api'
 
 // Component Imports
 import CustomTextField from '@core/components/mui/TextField'

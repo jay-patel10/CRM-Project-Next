@@ -40,6 +40,8 @@
     "@mui/x-data-grid": "^8.20.0",
     "@prisma/client": "5.15.0",
     "@reduxjs/toolkit": "2.2.5",
+    "@stripe/react-stripe-js": "^5.4.1",
+    "@stripe/stripe-js": "^8.6.0",
     "@tanstack/match-sorter-utils": "8.15.1",
     "@tanstack/react-table": "8.17.3",
     "@tiptap/extension-color": "2.4.0",

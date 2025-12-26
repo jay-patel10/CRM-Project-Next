@@ -7,6 +7,8 @@ import Button from '@mui/material/Button'
 import Typography from '@mui/material/Typography'
 import IconButton from '@mui/material/IconButton'
 import InputBase from '@mui/material/InputBase'
+import Alert from '@mui/material/Alert'
+import CircularProgress from '@mui/material/CircularProgress'
 
 // Third-party Imports
 import classnames from 'classnames'
@@ -19,6 +21,9 @@ import type { Editor } from '@tiptap/core'
 
 // Component Imports
 import CustomIconButton from '@core/components/mui/IconButton'
+
+// Service Imports
+import EmailAPIService from '@/services/emailService'
 
 // Hook Imports
 import { useSettings } from '@core/hooks/useSettings'
@@ -128,6 +133,13 @@ const ComposeMail = (props: Props) => {
 
   // States
   const [visibility, setVisibility] = useState({ cc: false, bcc: false })
+  const [to, setTo] = useState('')
+  const [cc, setCc] = useState('')
+  const [bcc, setBcc] = useState('')
+  const [subject, setSubject] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [success, setSuccess] = useState<string | null>(null)
 
   // Hooks
   const { settings } = useSettings()
@@ -148,6 +160,74 @@ const ComposeMail = (props: Props) => {
       Underline
     ]
   })
+
+  // Handle send email
+  const handleSendEmail = async () => {
+    setError(null)
+    setSuccess(null)
+
+    // Validation
+    if (!to.trim()) {
+      setError('Please enter recipient email')
+
+      return
+    }
+
+    if (!subject.trim()) {
+      setError('Please enter email subject')
+
+      return
+    }
+
+    const body = editor?.getHTML() || ''
+
+    if (!body || body === '<p></p>') {
+      setError('Please enter email message')
+
+      return
+    }
+
+    try {
+      setLoading(true)
+
+      const payload = {
+        to: to.trim(),
+        subject: subject.trim(),
+        body,
+        ...(cc && {
+          cc: cc
+            .split(',')
+            .map(e => e.trim())
+            .filter(Boolean)
+        }),
+        ...(bcc && {
+          bcc: bcc
+            .split(',')
+            .map(e => e.trim())
+            .filter(Boolean)
+        })
+      }
+
+      await EmailAPIService.sendEmail(payload)
+
+      setSuccess('✅ Email sent successfully!')
+
+      // Reset form after 2 seconds
+      setTimeout(() => {
+        setTo('')
+        setCc('')
+        setBcc('')
+        setSubject('')
+        editor?.commands.clearContent()
+        setSuccess(null)
+        setOpenCompose(false)
+      }, 2000)
+    } catch (err: any) {
+      setError(err.message || 'Failed to send email')
+    } finally {
+      setLoading(false)
+    }
+  }
 
   return (
     <Drawer
@@ -186,11 +266,24 @@ const ComposeMail = (props: Props) => {
           </IconButton>
         </div>
       </div>
+
+      {/* Success/Error Messages */}
+      {error && (
+        <Alert severity='error' onClose={() => setError(null)} className='m-4'>
+          {error}
+        </Alert>
+      )}
+      {success && (
+        <Alert severity='success' onClose={() => setSuccess(null)} className='m-4'>
+          {success}
+        </Alert>
+      )}
+
       <div className='flex items-center gap-2 pli-6 plb-1'>
         <Typography className='font-medium' color='text.disabled'>
           To:
         </Typography>
-        <InputBase fullWidth />
+        <InputBase fullWidth value={to} onChange={e => setTo(e.target.value)} placeholder='recipient@example.com' />
         <div className='text-textSecondary'>
           <span className='cursor-pointer' onClick={() => toggleVisibility('cc')}>
             Cc
@@ -201,9 +294,13 @@ const ComposeMail = (props: Props) => {
           </span>
         </div>
       </div>
+
       {visibility.cc && (
         <InputBase
           className='plb-1 pli-6 border-bs'
+          value={cc}
+          onChange={e => setCc(e.target.value)}
+          placeholder='email1@example.com, email2@example.com'
           startAdornment={
             <Typography className='font-medium mie-2' color='text.disabled'>
               Cc:
@@ -211,9 +308,13 @@ const ComposeMail = (props: Props) => {
           }
         />
       )}
+
       {visibility.bcc && (
         <InputBase
           className='plb-1 pli-6 border-bs'
+          value={bcc}
+          onChange={e => setBcc(e.target.value)}
+          placeholder='email1@example.com, email2@example.com'
           startAdornment={
             <Typography className='font-medium mie-2' color='text.disabled'>
               Bcc:
@@ -221,25 +322,36 @@ const ComposeMail = (props: Props) => {
           }
         />
       )}
+
       <InputBase
         className='plb-1 pli-6 border-bs'
+        value={subject}
+        onChange={e => setSubject(e.target.value)}
+        placeholder='Enter subject'
         startAdornment={
           <Typography className='font-medium mie-2' color='text.disabled'>
             Subject:
           </Typography>
         }
       />
+
       <EditorToolbar editor={editor} />
       <EditorContent editor={editor} className='bs-[105px] overflow-y-auto flex border-bs' />
+
       <div className='plb-4 pli-5 flex justify-between items-center gap-4'>
         <div className='flex items-center gap-4 max-sm:gap-3'>
           {isBelowSmScreen ? (
-            <CustomIconButton color='primary' variant='contained'>
-              <i className='tabler-send' />
+            <CustomIconButton color='primary' variant='contained' onClick={handleSendEmail} disabled={loading}>
+              {loading ? <CircularProgress size={20} color='inherit' /> : <i className='tabler-send' />}
             </CustomIconButton>
           ) : (
-            <Button variant='contained' endIcon={<i className='tabler-send' />} onClick={() => setOpenCompose(false)}>
-              Send
+            <Button
+              variant='contained'
+              endIcon={loading ? <CircularProgress size={20} color='inherit' /> : <i className='tabler-send' />}
+              onClick={handleSendEmail}
+              disabled={loading}
+            >
+              {loading ? 'Sending...' : 'Send'}
             </Button>
           )}
           <IconButton size='small'>
