@@ -14,9 +14,14 @@ import MenuItem from '@mui/material/MenuItem'
 
 import { useForm, Controller } from 'react-hook-form'
 
+import Alert from '@mui/material/Alert'
+
+import Box from '@mui/material/Box'
+
 import CustomTextField from '@core/components/mui/TextField'
 import { showToast } from '@/utils/toast'
 import apiClient from '@/libs/api'
+import { getStoredTrackingParams, trackLeadCreation } from '@/utils/gtm'
 
 type LeadFormType = {
   name: string
@@ -43,6 +48,7 @@ const AddLeadDrawer = ({ open, handleClose, onCreateLead }: Props) => {
   const [users, setUsers] = useState<Array<{ id: number; name: string; email: string }>>([])
   const [loading, setLoading] = useState(false)
   const [loadingUsers, setLoadingUsers] = useState(false)
+  const [trackingParams, setTrackingParams] = useState<any>({})
 
   const {
     control,
@@ -69,7 +75,24 @@ const AddLeadDrawer = ({ open, handleClose, onCreateLead }: Props) => {
   // Load users for assignment WHENEVER drawer opens
   useEffect(() => {
     if (open) {
+      // Existing behavior
       loadUsers()
+
+      // ✅ NEW: get UTM from GTM storage
+      const params = getStoredTrackingParams()
+
+      setTrackingParams(params)
+
+      // ✅ NEW: auto-fill source + utm fields
+      if (params?.utm_source) {
+        reset(prev => ({
+          ...prev,
+          source: prev?.source || params.utm_source,
+          utmSource: params.utm_source || '',
+          utmMedium: params.utm_medium || '',
+          utmCampaign: params.utm_campaign || ''
+        }))
+      }
     }
   }, [open])
 
@@ -113,7 +136,13 @@ const AddLeadDrawer = ({ open, handleClose, onCreateLead }: Props) => {
         ...data,
         assignedToId: data.assignedToId ? Number(data.assignedToId) : null,
 
-        // Trim strings
+        // ✅ GTM UTM priority
+        utmSource: trackingParams.utm_source || data.utmSource || null,
+        utmMedium: trackingParams.utm_medium || data.utmMedium || null,
+        utmCampaign: trackingParams.utm_campaign || data.utmCampaign || null,
+
+        apiSource: 'manual',
+
         name: data.name.trim(),
         email: data.email.trim(),
         company: data.company?.trim() || null,
@@ -130,6 +159,13 @@ const AddLeadDrawer = ({ open, handleClose, onCreateLead }: Props) => {
 
         return
       }
+
+      trackLeadCreation({
+        leadId: response.data.lead.id,
+        name: payload.name,
+        email: payload.email,
+        source: payload.utmSource || payload.source
+      })
 
       showToast.success('Lead created successfully!')
       onCreateLead()
@@ -161,6 +197,20 @@ const AddLeadDrawer = ({ open, handleClose, onCreateLead }: Props) => {
       </div>
 
       <Divider />
+      {Object.keys(trackingParams).length > 0 && (
+        <Alert severity='info'>
+          <Typography variant='caption' fontWeight='bold'>
+            Attribution Detected
+          </Typography>
+
+          {trackingParams.utm_source && (
+            <Typography variant='caption' display='block'>
+              Source: {trackingParams.utm_source}
+              {trackingParams.utm_medium && ` / ${trackingParams.utm_medium}`}
+            </Typography>
+          )}
+        </Alert>
+      )}
 
       <form onSubmit={handleSubmit(onSubmit)} className='flex flex-col gap-6 p-6'>
         <Controller

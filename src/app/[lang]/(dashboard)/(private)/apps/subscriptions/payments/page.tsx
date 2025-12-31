@@ -25,10 +25,11 @@ import {
   Select,
   MenuItem,
   Grid,
-  CircularProgress
+  CircularProgress,
+  Alert
 } from '@mui/material'
 
-import { usePermissions } from '@/contexts/PermissionContext'
+import apiClient from '@/libs/api'
 
 interface Payment {
   id: number
@@ -55,12 +56,16 @@ interface Payment {
 const PaymentsPage = () => {
   const params = useParams()
   const { lang } = params as { lang: string }
-  const { isAdmin } = usePermissions()
+
+  // Temporary: Get userId (in production, from auth context)
+  const [userId] = useState<number>(1) // Replace with actual user ID
+  const [isAdmin] = useState<boolean>(false) // Set to true for admin users
 
   const [payments, setPayments] = useState<Payment[]>([])
   const [loading, setLoading] = useState(true)
   const [statusFilter, setStatusFilter] = useState('all')
   const [gatewayFilter, setGatewayFilter] = useState('all')
+  const [error, setError] = useState('')
 
   useEffect(() => {
     fetchPayments()
@@ -68,27 +73,27 @@ const PaymentsPage = () => {
 
   const fetchPayments = async () => {
     try {
-      const token = localStorage.getItem('accessToken')
+      setLoading(true)
+      setError('')
+
       const endpoint = isAdmin ? '/subscriptions/payments' : '/subscriptions/my-payments'
 
-      const params = new URLSearchParams()
-
-      if (statusFilter !== 'all') params.append('status', statusFilter)
-      if (gatewayFilter !== 'all') params.append('gateway', gatewayFilter)
-
-      const url = `${process.env.NEXT_PUBLIC_API_URL}${endpoint}?${params.toString()}`
-
-      const res = await fetch(url, {
-        headers: { Authorization: `Bearer ${token}` }
+      const response = await apiClient.get(endpoint, {
+        params: {
+          ...(isAdmin ? {} : { userId }),
+          ...(statusFilter !== 'all' && { status: statusFilter }),
+          ...(gatewayFilter !== 'all' && { gateway: gatewayFilter })
+        }
       })
 
-      const data = await res.json()
-
-      if (data.success) {
-        setPayments(data.data)
+      if (response.data.success) {
+        setPayments(response.data.data)
+      } else {
+        setError(response.data.message || 'Failed to fetch payments')
       }
-    } catch (err) {
-      console.error('Failed to fetch payments:', err)
+    } catch (err: any) {
+      console.error('❌ Failed to fetch payments:', err)
+      setError(err.response?.data?.message || 'Failed to load payment history')
     } finally {
       setLoading(false)
     }
@@ -116,6 +121,13 @@ const PaymentsPage = () => {
       .toFixed(2)
   }
 
+  const calculateSuccessRate = () => {
+    if (payments.length === 0) return '0'
+    const successCount = payments.filter(p => p.status === 'success').length
+
+    return ((successCount / payments.length) * 100).toFixed(1)
+  }
+
   if (loading) {
     return (
       <Box display='flex' justifyContent='center' alignItems='center' minHeight='400px'>
@@ -135,6 +147,13 @@ const PaymentsPage = () => {
           {isAdmin ? 'View all customer payments' : 'Track your subscription payments'}
         </Typography>
       </Box>
+
+      {/* Error Alert */}
+      {error && (
+        <Alert severity='error' sx={{ mb: 3 }} onClose={() => setError('')}>
+          {error}
+        </Alert>
+      )}
 
       {/* Summary Cards */}
       <Grid container spacing={3} mb={4}>
@@ -168,10 +187,10 @@ const PaymentsPage = () => {
           <Card>
             <CardContent>
               <Typography variant='body2' color='text.secondary' gutterBottom>
-                Failed
+                Success Rate
               </Typography>
-              <Typography variant='h4' fontWeight={700} color='error.main'>
-                {payments.filter(p => p.status === 'failed').length}
+              <Typography variant='h4' fontWeight={700}>
+                {calculateSuccessRate()}%
               </Typography>
             </CardContent>
           </Card>
@@ -228,53 +247,111 @@ const PaymentsPage = () => {
           <Table>
             <TableHead>
               <TableRow>
-                <TableCell>ID</TableCell>
-                {isAdmin && <TableCell>Customer</TableCell>}
-                <TableCell>Plan</TableCell>
-                <TableCell>Amount</TableCell>
-                <TableCell>Gateway</TableCell>
-                <TableCell>Transaction ID</TableCell>
-                <TableCell>Status</TableCell>
-                <TableCell>Date</TableCell>
+                <TableCell>
+                  <Typography variant='subtitle2' fontWeight={600}>
+                    ID
+                  </Typography>
+                </TableCell>
+                {isAdmin && (
+                  <TableCell>
+                    <Typography variant='subtitle2' fontWeight={600}>
+                      Customer
+                    </Typography>
+                  </TableCell>
+                )}
+                <TableCell>
+                  <Typography variant='subtitle2' fontWeight={600}>
+                    Plan
+                  </Typography>
+                </TableCell>
+                <TableCell>
+                  <Typography variant='subtitle2' fontWeight={600}>
+                    Amount
+                  </Typography>
+                </TableCell>
+                <TableCell>
+                  <Typography variant='subtitle2' fontWeight={600}>
+                    Gateway
+                  </Typography>
+                </TableCell>
+                <TableCell>
+                  <Typography variant='subtitle2' fontWeight={600}>
+                    Transaction ID
+                  </Typography>
+                </TableCell>
+                <TableCell>
+                  <Typography variant='subtitle2' fontWeight={600}>
+                    Status
+                  </Typography>
+                </TableCell>
+                <TableCell>
+                  <Typography variant='subtitle2' fontWeight={600}>
+                    Date
+                  </Typography>
+                </TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
               {payments.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={isAdmin ? 8 : 7} align='center'>
-                    <Typography variant='body2' color='text.secondary' py={4}>
-                      No payments found
-                    </Typography>
+                    <Box py={4}>
+                      <Typography variant='body2' color='text.secondary'>
+                        No payments found
+                      </Typography>
+                    </Box>
                   </TableCell>
                 </TableRow>
               ) : (
                 payments.map(payment => (
-                  <TableRow key={payment.id}>
-                    <TableCell>#{payment.id}</TableCell>
+                  <TableRow key={payment.id} hover>
+                    <TableCell>
+                      <Typography variant='body2' fontWeight={500}>
+                        #{payment.id}
+                      </Typography>
+                    </TableCell>
                     {isAdmin && (
                       <TableCell>
-                        <Typography variant='body2'>{payment.user?.fullName}</Typography>
+                        <Typography variant='body2'>{payment.user?.fullName || 'N/A'}</Typography>
                         <Typography variant='caption' color='text.secondary'>
-                          {payment.user?.email}
+                          {payment.user?.email || 'N/A'}
                         </Typography>
                       </TableCell>
                     )}
-                    <TableCell>{payment.subscription?.plan?.name || 'N/A'}</TableCell>
                     <TableCell>
-                      {payment.currency} {parseFloat(payment.amount.toString()).toFixed(2)}
+                      <Typography variant='body2'>{payment.subscription?.plan?.name || 'N/A'}</Typography>
+                    </TableCell>
+                    <TableCell>
+                      <Typography variant='body2' fontWeight={500}>
+                        {payment.currency} {parseFloat(payment.amount.toString()).toFixed(2)}
+                      </Typography>
                     </TableCell>
                     <TableCell>
                       <Chip label={payment.gateway.toUpperCase()} size='small' variant='outlined' />
                     </TableCell>
                     <TableCell>
-                      <Typography variant='body2' sx={{ fontFamily: 'monospace', fontSize: '0.75rem' }}>
+                      <Typography
+                        variant='body2'
+                        sx={{
+                          fontFamily: 'monospace',
+                          fontSize: '0.75rem',
+                          maxWidth: '150px',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis'
+                        }}
+                      >
                         {payment.gatewayTransactionId || 'N/A'}
                       </Typography>
                     </TableCell>
                     <TableCell>
-                      <Chip label={payment.status} color={getStatusColor(payment.status)} size='small' />
+                      <Chip label={payment.status.toUpperCase()} color={getStatusColor(payment.status)} size='small' />
                     </TableCell>
-                    <TableCell>{new Date(payment.createdAt).toLocaleDateString()}</TableCell>
+                    <TableCell>
+                      <Typography variant='body2'>{new Date(payment.createdAt).toLocaleDateString()}</Typography>
+                      <Typography variant='caption' color='text.secondary'>
+                        {new Date(payment.createdAt).toLocaleTimeString()}
+                      </Typography>
+                    </TableCell>
                   </TableRow>
                 ))
               )}

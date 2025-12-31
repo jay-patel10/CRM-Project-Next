@@ -31,6 +31,7 @@ import {
 } from '@mui/material'
 
 import { usePermissions } from '@/contexts/PermissionContext'
+import apiClient from '@/libs/api'
 
 interface SubscriptionPlan {
   id: number
@@ -73,14 +74,18 @@ const SubscriptionPlansPage = () => {
 
   const fetchPlans = async () => {
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/subscriptions/plans`)
-      const data = await res.json()
+      setLoading(true)
 
-      if (data.success) {
-        setPlans(data.data)
+      const response = await apiClient.get('/subscriptions/plans')
+
+      if (response.data.success) {
+        setPlans(response.data.data)
+      } else {
+        setError(response.data.message || 'Failed to fetch plans')
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('Failed to fetch plans:', err)
+      setError(err.response?.data?.message || 'Failed to load plans')
     } finally {
       setLoading(false)
     }
@@ -125,32 +130,21 @@ const SubscriptionPlansPage = () => {
 
   const handleSavePlan = async () => {
     try {
-      const token = localStorage.getItem('accessToken')
+      setError('')
 
-      const url = editMode
-        ? `${process.env.NEXT_PUBLIC_API_URL}/subscriptions/plans/${selectedPlan?.id}`
-        : `${process.env.NEXT_PUBLIC_API_URL}/subscriptions/plans`
+      const response = editMode
+        ? await apiClient.put(`/subscriptions/plans/${selectedPlan?.id}`, formData)
+        : await apiClient.post('/subscriptions/plans', formData)
 
-      const res = await fetch(url, {
-        method: editMode ? 'PUT' : 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`
-        },
-        body: JSON.stringify(formData)
-      })
-
-      const data = await res.json()
-
-      if (data.success) {
+      if (response.data.success) {
         await fetchPlans()
         handleCloseDialog()
       } else {
-        setError(data.message || 'Failed to save plan')
+        setError(response.data.message || 'Failed to save plan')
       }
-    } catch (err) {
-      setError('An error occurred')
+    } catch (err: any) {
       console.error(err)
+      setError(err.response?.data?.message || 'An error occurred')
     }
   }
 
@@ -158,25 +152,16 @@ const SubscriptionPlansPage = () => {
     if (!confirm('Are you sure you want to delete this plan?')) return
 
     try {
-      const token = localStorage.getItem('accessToken')
+      const response = await apiClient.delete(`/subscriptions/plans/${planId}`)
 
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/subscriptions/plans/${planId}`, {
-        method: 'DELETE',
-        headers: {
-          Authorization: `Bearer ${token}`
-        }
-      })
-
-      const data = await res.json()
-
-      if (data.success) {
+      if (response.data.success) {
         await fetchPlans()
       } else {
-        alert(data.message || 'Failed to delete plan')
+        alert(response.data.message || 'Failed to delete plan')
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error(err)
-      alert('An error occurred')
+      alert(err.response?.data?.message || 'An error occurred')
     }
   }
 

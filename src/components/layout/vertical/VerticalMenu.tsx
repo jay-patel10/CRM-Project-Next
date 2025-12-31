@@ -190,11 +190,15 @@ const VerticalMenu = ({ dictionary, scrollMenu }: Props) => {
             <SubMenu label='Subscriptions' icon={<i className='tabler-credit-card' />}>
               <MenuItem href={`/${locale}/apps/subscriptions/list`}>My Subscription</MenuItem>
               <MenuItem href={`/${locale}/apps/subscriptions/payments`}>Payment History</MenuItem>
-              {isAdmin && <MenuItem href={`/${locale}/apps/subscriptions/plans`}>Manage Plans</MenuItem>}
+              {isAdmin && (
+                <>
+                  <MenuItem href={`/${locale}/apps/subscriptions/plans`}>Manage Plans</MenuItem>
+                  <MenuItem href={`/${locale}/apps/subscriptions/subscribers`}>Manage Subscribers</MenuItem>
+                </>
+              )}
             </SubMenu>
           </MenuSection>
         )}
-
         {/* ===== ADMIN & SETTINGS ===== */}
         {canViewAdmin && (
           <MenuSection label='ADMIN & SETTINGS'>

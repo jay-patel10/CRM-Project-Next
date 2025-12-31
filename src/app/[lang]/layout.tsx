@@ -10,6 +10,7 @@ import type { Locale } from '@configs/i18n'
 
 // Providers
 import ServerProviders from '@components/ServerProviders'
+import { GTMProvider } from '@/components/GTMProvider'
 
 // HOC Imports
 import TranslationWrapper from '@/hocs/TranslationWrapper'
@@ -19,8 +20,6 @@ import { i18n } from '@configs/i18n'
 
 // Style Imports
 import '@/app/globals.css'
-
-// Generated Icon CSS Imports
 import '@assets/iconify-icons/generated-icons.css'
 
 export const metadata = {
@@ -30,7 +29,6 @@ export const metadata = {
 }
 
 const LangLayout = ({ children, params }: ChildrenType & { params: { lang: Locale } }) => {
-  // Vars
   const headersList = headers()
   const direction = i18n.langDirection[params.lang]
 
@@ -38,8 +36,11 @@ const LangLayout = ({ children, params }: ChildrenType & { params: { lang: Local
     <TranslationWrapper headersList={headersList} lang={params.lang}>
       <html id='__next' lang={params.lang} dir={direction}>
         <body className='flex is-full min-bs-full flex-auto flex-col'>
-          {/* ✅ GLOBAL SETTINGS + THEME PROVIDER (FOR ALL PAGES) */}
-          <ServerProviders direction={direction}>{children}</ServerProviders>
+          {/* ✅ GTM Provider added here */}
+          <GTMProvider gtmId='GTM-XXXXXXX'>
+            {/* ✅ Global theme + settings */}
+            <ServerProviders direction={direction}>{children}</ServerProviders>
+          </GTMProvider>
         </body>
       </html>
     </TranslationWrapper>
