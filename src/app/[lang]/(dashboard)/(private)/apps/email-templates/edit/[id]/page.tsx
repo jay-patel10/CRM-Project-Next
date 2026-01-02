@@ -10,21 +10,47 @@ import CardContent from '@mui/material/CardContent'
 import Grid from '@mui/material/Grid'
 import Button from '@mui/material/Button'
 import Typography from '@mui/material/Typography'
-import Chip from '@mui/material/Chip'
 import FormControlLabel from '@mui/material/FormControlLabel'
 import Switch from '@mui/material/Switch'
-import Alert from '@mui/material/Alert'
 import Divider from '@mui/material/Divider'
 import CircularProgress from '@mui/material/CircularProgress'
+import Box from '@mui/material/Box'
+import Paper from '@mui/material/Paper'
+import Tabs from '@mui/material/Tabs'
+import Tab from '@mui/material/Tab'
 
 import CustomTextField from '@core/components/mui/TextField'
 import { showToast } from '@/utils/toast'
 import apiClient from '@/libs/api'
 
+interface TabPanelProps {
+  children?: React.ReactNode
+  index: number
+  value: number
+}
+
+function TabPanel(props: TabPanelProps) {
+  const { children, value, index, ...other } = props
+
+  return (
+    <div
+      role='tabpanel'
+      hidden={value !== index}
+      id={`template-tabpanel-${index}`}
+      aria-labelledby={`template-tab-${index}`}
+      {...other}
+    >
+      {value === index && <Box sx={{ p: 3 }}>{children}</Box>}
+    </div>
+  )
+}
+
 const EditEmailTemplatePage = ({ params }: { params: { id: string } }) => {
   const router = useRouter()
   const { lang: locale } = useParams()
   const templateId = params.id
+
+  const [tabValue, setTabValue] = useState(0)
 
   const [formData, setFormData] = useState({
     name: '',
@@ -35,7 +61,17 @@ const EditEmailTemplatePage = ({ params }: { params: { id: string } }) => {
     isActive: true
   })
 
-  const [errors, setErrors] = useState<any>({})
+  // Visual editor state
+  const [styling, setStyling] = useState({
+    primaryColor: '#7367F0',
+    textColor: '#333333',
+    backgroundColor: '#ffffff',
+    fontFamily: 'Arial, sans-serif',
+    fontSize: '14px',
+    buttonColor: '#7367F0',
+    buttonTextColor: '#ffffff'
+  })
+
   const [loading, setLoading] = useState(false)
   const [fetching, setFetching] = useState(true)
 
@@ -59,6 +95,9 @@ const EditEmailTemplatePage = ({ params }: { params: { id: string } }) => {
             variables: Array.isArray(template.variables) ? template.variables.join(', ') : '',
             isActive: template.isActive
           })
+
+          // Extract colors from existing HTML
+          extractStylingFromHTML(template.body)
         } else {
           showToast.error('Template not found')
           router.push(`/${locale}/apps/email-templates/list`)
@@ -72,46 +111,36 @@ const EditEmailTemplatePage = ({ params }: { params: { id: string } }) => {
     }
   }
 
-  const validateForm = () => {
-    const newErrors: any = {}
+  const extractStylingFromHTML = (html: string) => {
+    // Extract colors and styles from existing HTML
+    const primaryColorMatch = html.match(/background[:-]#?([A-Fa-f0-9]{6})/i)
+    const textColorMatch = html.match(/color[:-]#?([A-Fa-f0-9]{6})/i)
 
-    if (!formData.name.trim()) {
-      newErrors.name = 'Template name is required'
+    if (primaryColorMatch) {
+      setStyling(prev => ({ ...prev, primaryColor: `#${primaryColorMatch[1]}` }))
     }
 
-    if (!formData.slug.trim()) {
-      newErrors.slug = 'Slug is required'
-    } else if (!/^[a-z0-9-]+$/.test(formData.slug)) {
-      newErrors.slug = 'Slug can only contain lowercase letters, numbers, and hyphens'
+    if (textColorMatch) {
+      setStyling(prev => ({ ...prev, textColor: `#${textColorMatch[1]}` }))
     }
+  }
 
-    if (!formData.subject.trim()) {
-      newErrors.subject = 'Subject is required'
-    }
+  const applyStylesToHTML = (html: string) => {
+    let styledHTML = html
 
-    if (!formData.body.trim()) {
-      newErrors.body = 'Email body is required'
-    }
+    // Replace color values in the HTML
+    styledHTML = styledHTML.replace(/background:#[A-Fa-f0-9]{6}/gi, `background:${styling.buttonColor}`)
+    styledHTML = styledHTML.replace(/color:#[A-Fa-f0-9]{6}/gi, `color:${styling.textColor}`)
+    styledHTML = styledHTML.replace(/font-family:[^;]+/gi, `font-family:${styling.fontFamily}`)
 
-    if (formData.variables.trim()) {
-      const vars = formData.variables.split(',').map(v => v.trim())
-      const invalidVars = vars.filter(v => !/^[a-z_][a-z0-9_]*$/i.test(v))
-
-      if (invalidVars.length > 0) {
-        newErrors.variables = `Invalid variable names: ${invalidVars.join(', ')}`
-      }
-    }
-
-    setErrors(newErrors)
-
-    return Object.keys(newErrors).length === 0
+    return styledHTML
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
-    if (!validateForm()) {
-      showToast.error('Please fix all validation errors')
+    if (!formData.subject.trim()) {
+      showToast.error('Subject is required')
 
       return
     }
@@ -124,11 +153,14 @@ const EditEmailTemplatePage = ({ params }: { params: { id: string } }) => {
         .map(v => v.trim())
         .filter(v => v)
 
+      // Apply styling to HTML body
+      const styledBody = applyStylesToHTML(formData.body)
+
       const payload = {
         name: formData.name.trim(),
         slug: formData.slug.trim(),
         subject: formData.subject.trim(),
-        body: formData.body.trim(),
+        body: styledBody,
         variables,
         isActive: formData.isActive
       }
@@ -161,120 +193,167 @@ const EditEmailTemplatePage = ({ params }: { params: { id: string } }) => {
     )
   }
 
-  const extractedVars = formData.body.match(/{{([^}]+)}}/g)?.map(v => v.slice(2, -2)) || []
-
-  const declaredVars = formData.variables
-    .split(',')
-    .map(v => v.trim())
-    .filter(v => v)
-
-  const missingVars = extractedVars.filter(v => !declaredVars.includes(v))
+  // Generate preview HTML
+  const previewHTML = applyStylesToHTML(formData.body)
 
   return (
     <Card>
-      <CardHeader title='Edit Email Template' />
+      <CardHeader title={`Customize: ${formData.name}`} />
       <Divider />
 
       <CardContent>
+        <Tabs
+          value={tabValue}
+          onChange={(_, newValue) => setTabValue(newValue)}
+          sx={{ borderBottom: 1, borderColor: 'divider' }}
+        >
+          <Tab label='Visual Editor' />
+          <Tab label='Content' />
+          <Tab label='Preview' />
+        </Tabs>
+
         <form onSubmit={handleSubmit}>
-          <Grid container spacing={6}>
-            <Grid item xs={12} md={6}>
-              <CustomTextField
-                fullWidth
-                label='Template Name'
-                value={formData.name}
-                onChange={e => setFormData(prev => ({ ...prev, name: e.target.value }))}
-                error={!!errors.name}
-                helperText={errors.name}
-                required
-              />
-            </Grid>
+          {/* Visual Editor Tab */}
+          <TabPanel value={tabValue} index={0}>
+            <Grid container spacing={4}>
+              <Grid item xs={12}>
+                <Typography variant='h6' gutterBottom>
+                  Color & Style Settings
+                </Typography>
+              </Grid>
 
-            <Grid item xs={12} md={6}>
-              <CustomTextField
-                fullWidth
-                label='Slug'
-                value={formData.slug}
-                onChange={e => setFormData(prev => ({ ...prev, slug: e.target.value }))}
-                error={!!errors.slug}
-                helperText={errors.slug}
-                required
-              />
-            </Grid>
-
-            <Grid item xs={12}>
-              <CustomTextField
-                fullWidth
-                label='Email Subject'
-                value={formData.subject}
-                onChange={e => setFormData(prev => ({ ...prev, subject: e.target.value }))}
-                error={!!errors.subject}
-                helperText={errors.subject || 'Use {{variable_name}} for dynamic content'}
-                required
-              />
-            </Grid>
-
-            <Grid item xs={12}>
-              <CustomTextField
-                fullWidth
-                multiline
-                rows={12}
-                label='Email Body (HTML)'
-                value={formData.body}
-                onChange={e => setFormData(prev => ({ ...prev, body: e.target.value }))}
-                error={!!errors.body}
-                helperText={errors.body}
-                required
-              />
-            </Grid>
-
-            <Grid item xs={12}>
-              <CustomTextField
-                fullWidth
-                label='Variables (comma-separated)'
-                value={formData.variables}
-                onChange={e => setFormData(prev => ({ ...prev, variables: e.target.value }))}
-                error={!!errors.variables}
-                helperText={errors.variables}
-              />
-
-              {extractedVars.length > 0 && (
-                <Alert severity={missingVars.length > 0 ? 'warning' : 'success'} sx={{ mt: 2 }}>
-                  <Typography variant='body2' fontWeight='medium' gutterBottom>
-                    Variables found in template:
-                  </Typography>
-                  <div className='flex flex-wrap gap-1 mt-2'>
-                    {extractedVars.map((v, i) => (
-                      <Chip
-                        key={i}
-                        label={v}
-                        size='small'
-                        color={declaredVars.includes(v) ? 'success' : 'warning'}
-                        variant='outlined'
-                      />
-                    ))}
-                  </div>
-                  {missingVars.length > 0 && (
-                    <Typography variant='caption' color='warning.main' sx={{ mt: 1, display: 'block' }}>
-                      Missing: {missingVars.join(', ')}
-                    </Typography>
-                  )}
-                </Alert>
-              )}
-            </Grid>
-
-            <Grid item xs={12}>
-              <FormControlLabel
-                control={
-                  <Switch
-                    checked={formData.isActive}
-                    onChange={e => setFormData(prev => ({ ...prev, isActive: e.target.checked }))}
+              <Grid item xs={12} md={6}>
+                <Typography variant='body2' gutterBottom>
+                  Primary/Button Color
+                </Typography>
+                <div className='flex gap-2 items-center'>
+                  <input
+                    type='color'
+                    value={styling.buttonColor}
+                    onChange={e => setStyling(prev => ({ ...prev, buttonColor: e.target.value }))}
+                    style={{ width: 50, height: 40, border: 'none', cursor: 'pointer' }}
                   />
-                }
-                label='Active Template'
-              />
-            </Grid>
+                  <CustomTextField
+                    value={styling.buttonColor}
+                    onChange={e => setStyling(prev => ({ ...prev, buttonColor: e.target.value }))}
+                    size='small'
+                  />
+                </div>
+              </Grid>
 
+              <Grid item xs={12} md={6}>
+                <Typography variant='body2' gutterBottom>
+                  Text Color
+                </Typography>
+                <div className='flex gap-2 items-center'>
+                  <input
+                    type='color'
+                    value={styling.textColor}
+                    onChange={e => setStyling(prev => ({ ...prev, textColor: e.target.value }))}
+                    style={{ width: 50, height: 40, border: 'none', cursor: 'pointer' }}
+                  />
+                  <CustomTextField
+                    value={styling.textColor}
+                    onChange={e => setStyling(prev => ({ ...prev, textColor: e.target.value }))}
+                    size='small'
+                  />
+                </div>
+              </Grid>
+
+              <Grid item xs={12} md={6}>
+                <Typography variant='body2' gutterBottom>
+                  Background Color
+                </Typography>
+                <div className='flex gap-2 items-center'>
+                  <input
+                    type='color'
+                    value={styling.backgroundColor}
+                    onChange={e => setStyling(prev => ({ ...prev, backgroundColor: e.target.value }))}
+                    style={{ width: 50, height: 40, border: 'none', cursor: 'pointer' }}
+                  />
+                  <CustomTextField
+                    value={styling.backgroundColor}
+                    onChange={e => setStyling(prev => ({ ...prev, backgroundColor: e.target.value }))}
+                    size='small'
+                  />
+                </div>
+              </Grid>
+
+              <Grid item xs={12} md={6}>
+                <CustomTextField
+                  fullWidth
+                  select
+                  label='Font Family'
+                  value={styling.fontFamily}
+                  onChange={e => setStyling(prev => ({ ...prev, fontFamily: e.target.value }))}
+                  SelectProps={{ native: true }}
+                >
+                  <option value='Arial, sans-serif'>Arial</option>
+                  <option value='Helvetica, sans-serif'>Helvetica</option>
+                  <option value='Georgia, serif'>Georgia</option>
+                  <option value='Times New Roman, serif'>Times New Roman</option>
+                  <option value='Verdana, sans-serif'>Verdana</option>
+                </CustomTextField>
+              </Grid>
+            </Grid>
+          </TabPanel>
+
+          {/* Content Tab */}
+          <TabPanel value={tabValue} index={1}>
+            <Grid container spacing={4}>
+              <Grid item xs={12}>
+                <CustomTextField
+                  fullWidth
+                  label='Email Subject'
+                  value={formData.subject}
+                  onChange={e => setFormData(prev => ({ ...prev, subject: e.target.value }))}
+                  helperText='Use {{variable_name}} for dynamic content'
+                  required
+                />
+              </Grid>
+
+              <Grid item xs={12}>
+                <CustomTextField
+                  fullWidth
+                  multiline
+                  rows={16}
+                  label='Email Body (HTML)'
+                  value={formData.body}
+                  onChange={e => setFormData(prev => ({ ...prev, body: e.target.value }))}
+                  helperText='Modify text content. Colors will be applied from Visual Editor tab.'
+                />
+              </Grid>
+
+              <Grid item xs={12}>
+                <FormControlLabel
+                  control={
+                    <Switch
+                      checked={formData.isActive}
+                      onChange={e => setFormData(prev => ({ ...prev, isActive: e.target.checked }))}
+                    />
+                  }
+                  label='Active Template'
+                />
+              </Grid>
+            </Grid>
+          </TabPanel>
+
+          {/* Preview Tab */}
+          <TabPanel value={tabValue} index={2}>
+            <Typography variant='h6' gutterBottom>
+              Email Preview
+            </Typography>
+            <Typography variant='body2' color='text.secondary' gutterBottom>
+              Subject: {formData.subject}
+            </Typography>
+            <Divider sx={{ my: 2 }} />
+            <Paper elevation={2} sx={{ p: 3, backgroundColor: styling.backgroundColor }}>
+              <div dangerouslySetInnerHTML={{ __html: previewHTML }} />
+            </Paper>
+          </TabPanel>
+
+          {/* Action Buttons */}
+          <Grid container spacing={4} sx={{ mt: 2 }}>
             <Grid item xs={12}>
               <div className='flex gap-4'>
                 <Button
@@ -283,7 +362,7 @@ const EditEmailTemplatePage = ({ params }: { params: { id: string } }) => {
                   disabled={loading}
                   startIcon={loading ? <i className='tabler-loader animate-spin' /> : <i className='tabler-check' />}
                 >
-                  {loading ? 'Updating...' : 'Update Template'}
+                  {loading ? 'Saving...' : 'Save Changes'}
                 </Button>
 
                 <Button

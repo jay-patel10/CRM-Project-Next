@@ -228,7 +228,7 @@ export default function ApiIntegrationPage() {
               <Typography variant='subtitle1' className='font-semibold mb-2'>
                 3. Base URL
               </Typography>
-              <Box className='bg-gray-100 p-3 rounded-lg font-mono text-sm'>http://localhost:5000</Box>
+              <Box className='bg-gray-900 text-white p-3 rounded-lg font-mono text-sm'>http://localhost:5000</Box>
             </div>
           </div>
         </CardContent>
@@ -340,7 +340,7 @@ export default function ApiIntegrationPage() {
                     </Typography>
                     <Card variant='outlined'>
                       <table className='w-full'>
-                        <thead className='bg-gray-50'>
+                        <thead className='bg-50'>
                           <tr>
                             <th className='px-4 py-2 text-left text-sm font-medium'>Parameter</th>
                             <th className='px-4 py-2 text-left text-sm font-medium'>Type</th>

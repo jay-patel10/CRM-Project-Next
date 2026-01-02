@@ -11,11 +11,8 @@ import Typography from '@mui/material/Typography'
 import Chip from '@mui/material/Chip'
 import IconButton from '@mui/material/IconButton'
 import TablePagination from '@mui/material/TablePagination'
-import Dialog from '@mui/material/Dialog'
-import DialogTitle from '@mui/material/DialogTitle'
-import DialogContent from '@mui/material/DialogContent'
-import DialogActions from '@mui/material/DialogActions'
 import Tooltip from '@mui/material/Tooltip'
+import Alert from '@mui/material/Alert'
 
 import classnames from 'classnames'
 import { rankItem } from '@tanstack/match-sorter-utils'
@@ -52,8 +49,6 @@ const EmailTemplatesListPage = () => {
 
   const [data, setData] = useState([])
   const [globalFilter, setGlobalFilter] = useState('')
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
-  const [templateToDelete, setTemplateToDelete] = useState<any>(null)
 
   const loadTemplates = async () => {
     try {
@@ -73,34 +68,6 @@ const EmailTemplatesListPage = () => {
   useEffect(() => {
     loadTemplates()
   }, [])
-
-  const handleDeleteClick = (template: any) => {
-    setTemplateToDelete(template)
-    setDeleteDialogOpen(true)
-  }
-
-  const handleDeleteConfirm = async () => {
-    if (!templateToDelete) return
-
-    try {
-      const response = await apiClient.delete(`/emails/templates/${templateToDelete.id}`)
-
-      if (response.data.success) {
-        showToast.success('Email template deleted successfully!')
-        loadTemplates()
-      } else {
-        showToast.error(response.data.message || 'Failed to delete template')
-      }
-    } catch (err: any) {
-      console.error('Delete error:', err)
-      const errorMessage = err.response?.data?.message || 'Error deleting template'
-
-      showToast.error(errorMessage)
-    }
-
-    setDeleteDialogOpen(false)
-    setTemplateToDelete(null)
-  }
 
   const handleEdit = (template: any) => {
     router.push(`/${locale}/apps/email-templates/edit/${template.id}`)
@@ -179,14 +146,9 @@ const EmailTemplatesListPage = () => {
         enableSorting: false,
         cell: ({ row }) => (
           <div className='flex items-center gap-2'>
-            <Tooltip title='Edit Template'>
+            <Tooltip title='Customize Template'>
               <IconButton size='small' onClick={() => handleEdit(row.original)}>
                 <i className='tabler-edit text-textSecondary' />
-              </IconButton>
-            </Tooltip>
-            <Tooltip title='Delete Template'>
-              <IconButton size='small' onClick={() => handleDeleteClick(row.original)}>
-                <i className='tabler-trash text-textSecondary' />
               </IconButton>
             </Tooltip>
           </div>
@@ -211,102 +173,83 @@ const EmailTemplatesListPage = () => {
   })
 
   return (
-    <>
-      <Card>
-        <CardHeader title='Email Templates' className='pbe-4' />
+    <Card>
+      <CardHeader title='Email Templates' className='pbe-4' />
 
-        <div className='flex flex-col md:flex-row md:items-center justify-between gap-4 p-6 border-bs'>
-          <CustomTextField
-            value={globalFilter}
-            onChange={e => setGlobalFilter(e.target.value)}
-            placeholder='Search Templates'
-            className='is-full sm:is-auto'
-          />
-
-          <Button
-            variant='contained'
-            startIcon={<i className='tabler-plus' />}
-            onClick={() => router.push(`/${locale}/apps/email-templates/add`)}
-            className='is-full sm:is-auto'
-          >
-            Add Template
-          </Button>
-        </div>
-
-        <div className='overflow-x-auto'>
-          <table className={tableStyles.table}>
-            <thead>
-              {table.getHeaderGroups().map(headerGroup => (
-                <tr key={headerGroup.id}>
-                  {headerGroup.headers.map(header => (
-                    <th key={header.id}>
-                      {!header.isPlaceholder && (
-                        <div
-                          className={classnames({
-                            'flex items-center cursor-pointer select-none': header.column.getCanSort()
-                          })}
-                          onClick={header.column.getToggleSortingHandler()}
-                        >
-                          {flexRender(header.column.columnDef.header, header.getContext())}
-                          {{
-                            asc: <i className='tabler-chevron-up text-xl' />,
-                            desc: <i className='tabler-chevron-down text-xl' />
-                          }[header.column.getIsSorted() as 'asc' | 'desc'] ?? null}
-                        </div>
-                      )}
-                    </th>
-                  ))}
-                </tr>
-              ))}
-            </thead>
-
-            <tbody>
-              {table.getFilteredRowModel().rows.length === 0 ? (
-                <tr>
-                  <td colSpan={columns.length} className='text-center'>
-                    No email templates found
-                  </td>
-                </tr>
-              ) : (
-                table
-                  .getRowModel()
-                  .rows.slice(0, table.getState().pagination.pageSize)
-                  .map(row => (
-                    <tr key={row.id}>
-                      {row.getVisibleCells().map(cell => (
-                        <td key={cell.id}>{flexRender(cell.column.columnDef.cell, cell.getContext())}</td>
-                      ))}
-                    </tr>
-                  ))
-              )}
-            </tbody>
-          </table>
-        </div>
-
-        <TablePagination
-          component={() => <TablePaginationComponent table={table} />}
-          count={table.getFilteredRowModel().rows.length}
-          rowsPerPage={table.getState().pagination.pageSize}
-          page={table.getState().pagination.pageIndex}
-          onPageChange={(_, page) => table.setPageIndex(page)}
-        />
-      </Card>
-
-      <Dialog open={deleteDialogOpen} onClose={() => setDeleteDialogOpen(false)}>
-        <DialogTitle>Delete Email Template?</DialogTitle>
-        <DialogContent>
-          <Typography>
-            Are you sure you want to delete "{templateToDelete?.name}"? This action cannot be undone.
+      <div className='p-6 border-bs'>
+        <Alert severity='info' sx={{ mb: 3 }}>
+          <Typography variant='body2'>
+            Customize pre-defined email templates by changing colors, fonts, and text. You cannot create new templates
+            or delete existing ones.
           </Typography>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setDeleteDialogOpen(false)}>Cancel</Button>
-          <Button color='error' variant='contained' onClick={handleDeleteConfirm}>
-            Delete
-          </Button>
-        </DialogActions>
-      </Dialog>
-    </>
+        </Alert>
+
+        <CustomTextField
+          value={globalFilter}
+          onChange={e => setGlobalFilter(e.target.value)}
+          placeholder='Search Templates'
+          className='is-full sm:is-auto'
+        />
+      </div>
+
+      <div className='overflow-x-auto'>
+        <table className={tableStyles.table}>
+          <thead>
+            {table.getHeaderGroups().map(headerGroup => (
+              <tr key={headerGroup.id}>
+                {headerGroup.headers.map(header => (
+                  <th key={header.id}>
+                    {!header.isPlaceholder && (
+                      <div
+                        className={classnames({
+                          'flex items-center cursor-pointer select-none': header.column.getCanSort()
+                        })}
+                        onClick={header.column.getToggleSortingHandler()}
+                      >
+                        {flexRender(header.column.columnDef.header, header.getContext())}
+                        {{
+                          asc: <i className='tabler-chevron-up text-xl' />,
+                          desc: <i className='tabler-chevron-down text-xl' />
+                        }[header.column.getIsSorted() as 'asc' | 'desc'] ?? null}
+                      </div>
+                    )}
+                  </th>
+                ))}
+              </tr>
+            ))}
+          </thead>
+
+          <tbody>
+            {table.getFilteredRowModel().rows.length === 0 ? (
+              <tr>
+                <td colSpan={columns.length} className='text-center'>
+                  No email templates found
+                </td>
+              </tr>
+            ) : (
+              table
+                .getRowModel()
+                .rows.slice(0, table.getState().pagination.pageSize)
+                .map(row => (
+                  <tr key={row.id}>
+                    {row.getVisibleCells().map(cell => (
+                      <td key={cell.id}>{flexRender(cell.column.columnDef.cell, cell.getContext())}</td>
+                    ))}
+                  </tr>
+                ))
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      <TablePagination
+        component={() => <TablePaginationComponent table={table} />}
+        count={table.getFilteredRowModel().rows.length}
+        rowsPerPage={table.getState().pagination.pageSize}
+        page={table.getState().pagination.pageIndex}
+        onPageChange={(_, page) => table.setPageIndex(page)}
+      />
+    </Card>
   )
 }
 

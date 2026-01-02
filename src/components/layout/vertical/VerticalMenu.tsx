@@ -176,10 +176,9 @@ const VerticalMenu = ({ dictionary, scrollMenu }: Props) => {
             )}
 
             {canViewEmailTemplates && (
-              <SubMenu label='Email Templates' icon={<i className='tabler-template' />}>
-                <MenuItem href={`/${locale}/apps/email-templates/list`}>All Templates</MenuItem>
-                <MenuItem href={`/${locale}/apps/email-templates/add`}>Create Template</MenuItem>
-              </SubMenu>
+              <MenuItem href={`/${locale}/apps/email-templates/list`} icon={<i className='tabler-template' />}>
+                Email Templates
+              </MenuItem>
             )}
           </MenuSection>
         )}

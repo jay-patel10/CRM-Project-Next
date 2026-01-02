@@ -7,7 +7,6 @@ import Card from '@mui/material/Card'
 import CardContent from '@mui/material/CardContent'
 import Button from '@mui/material/Button'
 import Typography from '@mui/material/Typography'
-import TextField from '@mui/material/TextField'
 import MenuItem from '@mui/material/MenuItem'
 import IconButton from '@mui/material/IconButton'
 import Chip from '@mui/material/Chip'
@@ -127,10 +126,17 @@ export default function ApiKeysPage() {
     }
 
     try {
+      // Clean the data before sending
+      const submitData = {
+        name: formData.name.trim(),
+        permissions: formData.permissions,
+        expiresAt: formData.expiresAt && formData.expiresAt.trim() !== '' ? formData.expiresAt : null
+      }
+
       const url = editMode ? `/api-keys/${selectedKey.id}` : '/api-keys'
       const method = editMode ? 'put' : 'post'
 
-      const response = await apiClient[method](url, formData)
+      const response = await apiClient[method](url, submitData)
 
       if (response.data.success) {
         toast.success(response.data.message)
@@ -145,7 +151,10 @@ export default function ApiKeysPage() {
         toast.error(response.data.message || 'Operation failed')
       }
     } catch (error) {
-      toast.error('Error processing request')
+      const errorMsg = error.response?.data?.message || 'Error processing request'
+
+      toast.error(errorMsg)
+      console.error('Submit error:', error)
     }
   }
 
@@ -297,7 +306,7 @@ export default function ApiKeysPage() {
                 </tr>
               ) : (
                 apiKeys.map(key => (
-                  <tr key={key.id} className='border-b hover:bg-gray-50'>
+                  <tr key={key.id} className='border-b'>
                     <td className='px-6 py-4'>
                       <Typography variant='body2' className='font-medium'>
                         {key.name}
@@ -388,7 +397,7 @@ export default function ApiKeysPage() {
 
             <div>
               <Typography variant='subtitle2' className='mb-2'>
-                Permissions
+                Permissions *
               </Typography>
               <Grid container spacing={2}>
                 {availablePermissions.map(permission => (
@@ -414,8 +423,16 @@ export default function ApiKeysPage() {
               value={formData.expiresAt}
               onChange={e => setFormData({ ...formData, expiresAt: e.target.value })}
               InputLabelProps={{ shrink: true }}
-              helperText='Leave empty for no expiration'
+              helperText='Leave empty for no expiration - key will be valid until manually deleted'
             />
+
+            {!editMode && (
+              <Box className='bg-warning-light p-3 rounded'>
+                <Typography variant='body2' color='warning.main'>
+                  ⚠️ Make sure to copy your API key after creation. You won't be able to see it again!
+                </Typography>
+              </Box>
+            )}
           </Box>
         </DialogContent>
         <DialogActions>
@@ -445,6 +462,11 @@ export default function ApiKeysPage() {
                   )
                 }}
               />
+              <Box className='bg-info-light p-3 rounded'>
+                <Typography variant='body2' color='info.main'>
+                  🔒 Keep this key secure and never share it publicly!
+                </Typography>
+              </Box>
             </Box>
           )}
         </DialogContent>
